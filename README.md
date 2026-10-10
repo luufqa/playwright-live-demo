@@ -18,19 +18,6 @@ Open the page, click **Run the demo**, then **Create**, and watch the pipeline l
 https://luufqa.github.io/playwright-live-demo/
 ```
 
-## Run locally
-
-You need only Docker.
-
-```bash
-docker build -t playwright-live-demo . && docker run --rm -v "$PWD/allure-results:/app/allure-results" playwright-live-demo
-```
-
-Run only the smoke tests:
-
-```bash
-docker run --rm playwright-live-demo pytest -m smoke
-```
 
 ## What happens
 
