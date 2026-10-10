@@ -18,12 +18,6 @@ Open the page, click **Run the demo**, then **Create**, and watch the pipeline l
 https://luufqa.github.io/playwright-live-demo/
 ```
 
-Or start it directly from GitHub:
-
-```text
-https://github.com/luufqa/playwright-live-demo/issues/new?template=run-demo.md
-```
-
 ## Run locally
 
 You need only Docker.
