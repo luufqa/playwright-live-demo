@@ -15,7 +15,7 @@ This site is not part of this project.
 Open the link, click **Submit** and watch the pipeline live:
 
 ```text
-https://github.com/luufqa/playwright-live-demo/issues/new?template=run-demo.yml
+https://github.com/luufqa/playwright-live-demo/issues/new?template=run-demo.md
 ```
 
 ## Run locally
