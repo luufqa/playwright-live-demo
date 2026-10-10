@@ -5,5 +5,5 @@ title: Run demo
 labels: demo
 ---
 
-Click **Create** and the bot starts a real pipeline: Docker build → smoke tests → regression tests → Allure report.
-You will see every step here, in this issue. One person can run one demo at a time.
+1. Click - Create. A real pipeline starts: Queue → Base image → Test image → Smoke tests → Regression → Allure report.
+2. Click - Watch it live, step by step.
