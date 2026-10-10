@@ -1,0 +1,10 @@
+__pycache__/
+.pytest_cache/
+.venv/
+allure-results/
+allure-report/
+
+# IDE and macOS files
+.idea/
+.vscode/
+.DS_Store

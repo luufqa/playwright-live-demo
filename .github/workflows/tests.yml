@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, development]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v7
+
+      - name: Build Docker image (base → tests)
+        run: docker build --progress=plain -t playwright-live-demo .
+
+      - name: Prepare folder for test results
+        run: mkdir -m 777 allure-results
+
+      - name: Smoke tests
+        run: docker run --rm -v "$PWD/allure-results:/app/allure-results" playwright-live-demo pytest -m smoke
+
+      - name: Regression tests
+        run: docker run --rm -v "$PWD/allure-results:/app/allure-results" playwright-live-demo pytest -m "not smoke"
+
+      - name: Generate Allure report
+        if: ${{ !cancelled() }}
+        run: npx -y allure@3.20.1 generate allure-results -o allure-report
+
+      - name: Publish Allure report
+        if: ${{ !cancelled() }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: allure-report
+          destination_dir: reports/${{ github.run_id }}
+          keep_files: true
+
+      - name: Show report link
+        if: ${{ !cancelled() }}
+        run: echo "Allure report https://luufqa.github.io/playwright-live-demo/reports/${{ github.run_id }}/" >> "$GITHUB_STEP_SUMMARY"
