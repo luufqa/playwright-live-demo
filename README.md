@@ -18,6 +18,7 @@ Open the page, click **Run the demo**, then **Create**, and watch the pipeline l
 https://luufqa.github.io/playwright-live-demo/
 ```
 
+[![Playwright Live Demo start page](docs/images/start-page.png)](https://luufqa.github.io/playwright-live-demo/)
 
 ## What happens
 
