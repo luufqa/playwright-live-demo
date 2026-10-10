@@ -45,6 +45,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPORT_URL: https://luufqa.github.io/playwright-live-demo/reports/${{ github.run_id }}/
           POST_URL: ""
+          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           mkdir -m 777 allure-results demo
           python3 showcase/status.py queue

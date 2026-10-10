@@ -180,7 +180,15 @@ def publish(status: dict):
     title = "Demo run · finished" if status["finished"] else f"Demo run · {percent(status)}%"
     if status["queue"]:
         title = f"Demo run · in queue ({status['queue']['position']})"
+    if status["code"]:
+        title += f" · {status['code']}"
     github("PATCH", f"/issues/{status['issue']}", {"title": title})
+
+
+def run_code(title: str) -> str:
+    """The live page adds a short code to the issue title to find this run, for example 'Run demo 7f3a2c'."""
+    match = re.search(r"\b([0-9a-f]{6})\s*$", title)
+    return match.group(1) if match else ""
 
 
 def open_demos() -> list:
@@ -225,6 +233,7 @@ def queue():
         "run_url": os.environ["RUN_URL"],
         "report_url": os.environ["REPORT_URL"],
         "post_url": os.environ["POST_URL"],
+        "code": run_code(os.environ.get("ISSUE_TITLE", "")),
         "queue": None,
         "stages": {stage: "waiting" for stage in STAGES},
         "events": [],

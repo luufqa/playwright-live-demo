@@ -206,6 +206,10 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .landing p { color: var(--muted); font-size: 17px; max-width: 640px; margin: 16px auto 0; }
 .message { margin-top: 28px; padding: 28px; text-align: center; }
 .hidden { display: none !important; }
+.wait-title { font-size: clamp(26px, 4.5vw, 40px) !important; }
+.wait-code { margin-top: 22px; display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
+.wait-code b { font-family: "JetBrains Mono", monospace; color: var(--text); letter-spacing: .08em; }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--track); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 .actions { display: flex; justify-content: center; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
 .hero { padding: 24px 28px; }
 .hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
@@ -360,6 +364,14 @@ footer { margin-top: 36px; color: var(--muted); font-size: 13px; text-align: cen
 
   <section id="message" class="panel message hidden"></section>
 
+  <section id="waiting" class="panel landing hidden">
+    <div class="eyebrow">Almost there</div>
+    <h1 class="wait-title">Click <em>Create</em> on GitHub</h1>
+    <p>GitHub opened in a new tab. Click <b>Create</b> there and come back: this page finds your run and shows it live.</p>
+    <div class="wait-code"><span class="spinner"></span>Waiting for run <b id="wait-code">······</b></div>
+    <div class="actions"><a class="btn" id="reopen-button" href="#" target="_blank" rel="noopener">Open GitHub again</a></div>
+  </section>
+
   <section class="panel hero hidden" id="live">
     <div class="hero-top">
       <div class="hero-title">
@@ -380,6 +392,7 @@ footer { margin-top: 36px; color: var(--muted); font-size: 13px; text-align: cen
         <div class="tools">
           <a class="btn sm primary hidden" id="report-button" href="#" target="_blank" rel="noopener"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18"/><path d="M6.5 17v-5M11.5 17V6M16.5 17v-8"/></svg>Allure report</a>
           <a class="btn sm hidden" id="again-button" href="#"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Run again</a>
+          <a class="btn sm" id="code-button" href="#" target="_blank" rel="noopener"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14"/></svg>See code</a>
           <a class="btn sm hidden" id="post-button" href="#" target="_blank" rel="noopener"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg>Feedback</a>
           <button class="btn sm" id="log-toggle" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="m7 9 3 3-3 3M12.5 15H17"/></svg><span id="log-label">Hide console</span></button>
         </div>
@@ -645,16 +658,59 @@ async function poll(issue) {
   setTimeout(() => poll(issue), delay * 1000);
 }
 
+function newCode() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(3)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function runLink(code) {
+  return `${RUN_URL}&title=${encodeURIComponent(`Run demo ${code}`)}`;
+}
+
+function startRun(button) {
+  const code = newCode();
+  button.href = runLink(code);
+  setTimeout(() => { location.href = `?wait=${code}`; }, 150);
+}
+
+async function waitForRun(code) {
+  try {
+    const response = await fetch(`${API}/issues?state=all&sort=created&direction=desc&per_page=30`);
+    if (response.ok) {
+      const issues = await response.json();
+      const mine = issues.find((issue) => !issue.pull_request && issue.title.includes(code));
+      if (mine) {
+        location.replace(`?issue=${mine.number}`);
+        return;
+      }
+    }
+  } catch {}
+  setTimeout(() => waitForRun(code), 5000);
+}
+
 function tick() {
   if (startTime) $("elapsed").textContent = `${clock((endTime || Date.now() / 1000) - startTime)}`;
 }
 
 function start() {
-  const issue = new URLSearchParams(location.search).get("issue");
-  $("run-button").href = RUN_URL;
-  $("again-button").href = RUN_URL;
+  const params = new URLSearchParams(location.search);
+  const issue = params.get("issue");
+  const wait = params.get("wait");
+  ["run-button", "again-button"].forEach((id) => {
+    $(id).href = RUN_URL;
+    $(id).target = "_blank";
+    $(id).rel = "noopener";
+    $(id).addEventListener("click", () => startRun($(id)));
+  });
   $("repo-button").href = `https://github.com/${REPO}`;
+  $("code-button").href = `https://github.com/${REPO}`;
   loadCounter();
+  if (wait && /^[0-9a-f]{6}$/.test(wait)) {
+    $("wait-code").textContent = wait;
+    $("reopen-button").href = runLink(wait);
+    show("waiting", true);
+    waitForRun(wait);
+    return;
+  }
   if (!issue || !/^\d+$/.test(issue)) {
     show("landing", true);
     buildPipeline("preview");
