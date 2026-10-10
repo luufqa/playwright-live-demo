@@ -1,0 +1,21 @@
+{
+  "responseCode": 200,
+  "user": {
+    "id": 3019401,
+    "name": "Demo User",
+    "email": "demo-a57a6d7c@example.com",
+    "title": "",
+    "birth_day": "",
+    "birth_month": "",
+    "birth_year": "",
+    "first_name": "Demo",
+    "last_name": "User",
+    "company": "",
+    "address1": "1 Test Street",
+    "address2": "",
+    "country": "Canada",
+    "state": "Ontario",
+    "city": "Toronto",
+    "zipcode": "10001"
+  }
+}
