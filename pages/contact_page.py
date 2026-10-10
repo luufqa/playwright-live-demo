@@ -21,3 +21,7 @@ class ContactPage(BasePage):
         expect(self.page.locator(ContactLocators.SUCCESS_MESSAGE)).to_have_text(
             "Success! Your details have been submitted successfully."
         )
+
+    @allure.step("Check contact page is opened")
+    def should_be_opened(self):
+        self.should_see_text("Get In Touch")

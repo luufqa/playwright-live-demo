@@ -16,3 +16,7 @@ class ProductsPage(BasePage):
         expect(names.first).to_be_visible()
         for name in names.all_inner_texts():
             assert word.lower() in name.lower(), f"'{name}' does not contain '{word}'"
+
+    @allure.step("Check products page is opened")
+    def should_be_opened(self):
+        self.should_see_text("All Products")

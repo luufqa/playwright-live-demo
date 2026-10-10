@@ -12,7 +12,13 @@ This site is not part of this project.
 
 ## Run the demo
 
-Open the link, click **Submit** and watch the pipeline live:
+Open the page, click **Run the demo**, then **Create**, and watch the pipeline live:
+
+```text
+https://luufqa.github.io/playwright-live-demo/
+```
+
+Or start it directly from GitHub:
 
 ```text
 https://github.com/luufqa/playwright-live-demo/issues/new?template=run-demo.md
@@ -44,7 +50,7 @@ docker run --rm playwright-live-demo pytest -m smoke
 
 ## Tests
 
-Expected result: **9 passed, 1 failed, 1 skipped.**
+Expected result: **13 passed, 1 failed, 1 skipped.**
 
 - The failed test is real: the site answers `200` to an unsupported `POST` request, but REST says it must be `405`.
 - The skipped test shows how to skip a test on purpose: real payments are not allowed in the demo.

@@ -5,6 +5,7 @@ import json
 import time
 import sys
 import os
+import re
 
 MAX_RUNS = 3
 DEMO_DIR = Path("demo")
@@ -28,6 +29,15 @@ PERCENT = {
 }
 ICONS = {"waiting": "⬜", "running": "⏳", "done": "✅", "failed": "❌", "skipped": "⏭️"}
 TEST_ICONS = {"passed": "✅", "failed": "❌", "skipped": "⏭️"}
+STAGE_EVENTS = {
+    ("queue", "done"): "Your turn: GitHub Actions gave us a clean Linux runner",
+    ("base", "running"): "Docker starts building the base image",
+    ("base", "done"): "Base image is ready",
+    ("image", "running"): "Docker builds the test image on top of the base image",
+    ("image", "done"): "Test image is ready: the container can start",
+    ("report", "running"): "Allure collects the results into an HTML report",
+}
+MAIN_PACKAGES = ("pytest", "pytest-playwright", "playwright", "allure-pytest")
 
 
 def github(method: str, path: str, data: dict = None):
@@ -48,6 +58,10 @@ def load() -> dict:
 
 def save(status: dict):
     STATUS_FILE.write_text(json.dumps(status))
+
+
+def add_event(status: dict, stage: str, text: str, kind: str = "info"):
+    status["events"].append({"time": time.time(), "stage": stage, "text": text, "kind": kind})
 
 
 def test_progress(stage: str):
@@ -92,44 +106,65 @@ def details(status: dict, stage: str, state: str) -> str:
         progress = test_progress(stage)
         if not progress:
             return ""
-        text = f"{progress['done']}/{progress['total']} · ✅ {progress['passed']} ❌ {progress['failed']} ⏭️ {progress['skipped']}"
-        if progress["last"]:
-            text += f" · last: {TEST_ICONS[progress['last_outcome']]} `{progress['last']}`"
-        return text
+        return f"{progress['done']}/{progress['total']} · ✅ {progress['passed']} ❌ {progress['failed']} ⏭️ {progress['skipped']}"
     if stage == "report" and state == "done":
         return f"[open report]({status['report_url']})"
     return {"running": "in progress…", "done": "ready", "failed": "failed"}.get(state, "")
 
 
+def totals() -> dict:
+    results = [test_progress(stage) for stage in ("smoke", "regression")]
+    return {key: sum(result[key] for result in results if result) for key in ("passed", "failed", "skipped")}
+
+
+def snapshot(status: dict) -> dict:
+    """All data for the live page."""
+    stages = []
+    for stage, label in STAGES.items():
+        state = stage_state(status, stage)
+        stages.append({"id": stage, "label": label, "state": state, "details": details(status, stage, state)})
+    return {
+        "percent": percent(status),
+        "finished": status["finished"],
+        "queue": status["queue"],
+        "run_url": status["run_url"],
+        "report_url": status["report_url"] if status["stages"]["report"] == "done" else "",
+        "post_url": status["post_url"],
+        "stages": stages,
+        "tests": {stage: test_progress(stage) for stage in ("smoke", "regression")},
+        "events": status["events"][-80:],
+        "totals": totals(),
+    }
+
+
 def render(status: dict) -> str:
-    value = percent(status)
+    data = snapshot(status)
+    value = data["percent"]
     bar = "▓" * (value // 5) + "░" * (20 - value // 5)
-    stages = {stage: stage_state(status, stage) for stage in STAGES}
     lines = [
         f"## 🚀 Demo run · {value}%",
         "",
         f"`{bar}` **{value}%**",
         "",
+        f"🎬 **[Watch it live, step by step]({status['page_url']})** · ▶️ [Raw log]({status['run_url']})",
+        "",
         "| | Stage | Result |",
         "|---|---|---|",
     ]
-    for stage, label in STAGES.items():
-        lines.append(f"| {ICONS[stages[stage]]} | {label} | {details(status, stage, stages[stage])} |")
-    lines += ["", f"▶️ [Watch the live log]({status['run_url']})"]
+    for stage in data["stages"]:
+        lines.append(f"| {ICONS[stage['state']]} | {stage['label']} | {stage['details']} |")
     if status["finished"]:
         lines += ["", summary(status)]
-    lines += ["", f"<!-- status: {json.dumps({'percent': value, 'stages': stages})} -->"]
+    hidden = json.dumps(data, ensure_ascii=False).replace("--", "-\\u002d")
+    lines += ["", f"<!-- status: {hidden} -->"]
     return "\n".join(lines)
 
 
 def summary(status: dict) -> str:
-    results = [test_progress(stage) for stage in ("smoke", "regression")]
-    passed = sum(result["passed"] for result in results if result)
-    failed = sum(result["failed"] for result in results if result)
-    skipped = sum(result["skipped"] for result in results if result)
+    result = totals()
     lines = [
         "### 🏁 Finished",
-        f"✅ {passed} passed · ❌ {failed} failed · ⏭️ {skipped} skipped",
+        f"✅ {result['passed']} passed · ❌ {result['failed']} failed · ⏭️ {result['skipped']} skipped",
         "The failed test is expected: the site answers `200` to an unsupported `POST`, but REST says it must be `405`.",
     ]
     if status["stages"]["report"] == "done":
@@ -171,7 +206,8 @@ def check():
         running = earlier[0]
         github("POST", f"/issues/{issue}/comments", {
             "body": f"👋 You already have a demo running: #{running['number']} — **{running['title']}**.\n"
-                    "Please wait until it finishes, then start a new one."
+                    "Please wait until it finishes, then start a new one.\n\n"
+                    f"<!-- duplicate: {running['number']} -->"
         })
         github("PATCH", f"/issues/{issue}", {"state": "closed", "state_reason": "not_planned"})
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
@@ -181,19 +217,24 @@ def check():
 def queue():
     """Create the bot comment and wait until fewer than MAX_RUNS demos run before us."""
     issue = int(os.environ["ISSUE"])
+    owner, repo = os.environ["GITHUB_REPOSITORY"].split("/")
     status = {
         "issue": issue,
         "comment_id": None,
+        "page_url": f"https://{owner}.github.io/{repo}/?issue={issue}",
         "run_url": os.environ["RUN_URL"],
         "report_url": os.environ["REPORT_URL"],
         "post_url": os.environ["POST_URL"],
         "queue": None,
         "stages": {stage: "waiting" for stage in STAGES},
+        "events": [],
         "finished": False,
     }
     status["stages"]["queue"] = "running"
+    add_event(status, "queue", f"Request received from issue #{issue}")
     status["comment_id"] = github("POST", f"/issues/{issue}/comments", {"body": "⏳ Starting…"})["id"]
     save(status)
+    publish(status)
     while True:
         demos = open_demos()
         ahead = [demo for demo in demos if demo["number"] < issue]
@@ -202,11 +243,13 @@ def queue():
         position = len(ahead) - MAX_RUNS + 1
         if status["queue"] != {"position": position, "total": len(demos)}:
             status["queue"] = {"position": position, "total": len(demos)}
+            add_event(status, "queue", f"In queue: position {position} of {len(demos)}")
             save(status)
             publish(status)
         time.sleep(15)
     status["queue"] = None
     status["stages"]["queue"] = "done"
+    add_event(status, "queue", STAGE_EVENTS[("queue", "done")], "ok")
     save(status)
     publish(status)
 
@@ -214,6 +257,60 @@ def queue():
 def stage(name: str, state: str):
     status = load()
     status["stages"][name] = state
+    text = STAGE_EVENTS.get((name, state))
+    if text:
+        add_event(status, name, text, "ok" if state == "done" else "info")
+    save(status)
+    publish(status)
+
+
+def docker_event(line: str, steps: dict):
+    """Turn one line of the Docker build log into a short event, or None."""
+    match = re.search(r"load metadata for docker\.io/library/(\S+)", line)
+    if match:
+        return f"Request to Docker Hub: {match.group(1)}", "info"
+    match = re.match(r"#(\d+) \[(\w+) \d+/\d+\] FROM docker\.io/library/([^@\s]+)", line)
+    if match:
+        steps[match.group(1)] = True
+        return f"Pull image {match.group(3)}", "cmd"
+    match = re.match(r"#(\d+) \[(\w+) \d+/\d+\] (RUN|COPY|WORKDIR) (.+)", line)
+    if match:
+        steps[match.group(1)] = True
+        command = " ".join(match.group(4).split())
+        return f"[{match.group(2)}] {match.group(3)} {command[:110]}", "cmd"
+    match = re.match(r"#(\d+) (DONE ([\d.]+)s|CACHED)$", line)
+    if match and steps.pop(match.group(1), False):
+        return ("from cache: already built", "ok") if match.group(2) == "CACHED" else (f"done in {match.group(3)} s", "ok")
+    match = re.search(r"Setting up python3\.\d+ \((\S+)\)", line)
+    if match:
+        return f"Python {match.group(1).split('-')[0]} installed", "ok"
+    match = re.search(r"Successfully installed (.+)", line)
+    if match:
+        packages = [package.rsplit("-", 1) for package in match.group(1).split()]
+        main = [f"{name} {version}" for name, version in packages if name in MAIN_PACKAGES]
+        return f"Installed: {', '.join(main)}", "ok"
+    if "Installing dependencies..." in line:
+        return "Installing system libraries for Chromium", "info"
+    match = re.search(r"\d Downloading (.+?) \(playwright", line)
+    if match:
+        return f"Downloading {match.group(1)}", "info"
+    return None
+
+
+def docker(name: str):
+    """Read the Docker build log from stdin, print it and send short events to the live page."""
+    status = load()
+    steps = {}
+    last_publish = 0.0
+    for line in sys.stdin:
+        print(line, end="", flush=True)
+        event = docker_event(line.strip(), steps)
+        if event and (event[1] != "info" or all(old["text"] != event[0] for old in status["events"] if old["stage"] == name)):
+            add_event(status, name, *event)
+            save(status)
+            if time.time() - last_publish > 3:
+                last_publish = time.time()
+                publish(status)
     save(status)
     publish(status)
 
@@ -228,6 +325,8 @@ def finish(report_published: str):
             status["stages"][name] = "failed"
         elif state == "waiting":
             status["stages"][name] = "skipped"
+    add_event(status, "report", "Allure report is published" if report_published == "true" else "Report was not published",
+              "ok" if report_published == "true" else "fail")
     status["finished"] = True
     save(status)
     publish(status)
@@ -236,4 +335,4 @@ def finish(report_published: str):
 
 if __name__ == "__main__":
     command, *arguments = sys.argv[1:]
-    {"check": check, "queue": queue, "stage": stage, "finish": finish}[command](*arguments)
+    {"check": check, "queue": queue, "stage": stage, "docker": docker, "finish": finish}[command](*arguments)

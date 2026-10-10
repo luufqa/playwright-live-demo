@@ -7,8 +7,8 @@ class BasePage:
         self.page = page
 
     def open(self, url: str):
-        """Open the page by url."""
-        self.page.goto(url)
+        """Open the page by url. Do not wait for ads and other slow resources."""
+        self.page.goto(url, wait_until="domcontentloaded")
 
     def click_button(self, name: str):
         """Click the button with this name."""

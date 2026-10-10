@@ -33,6 +33,9 @@ jobs:
     if: needs.check.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Get the code
         uses: actions/checkout@v7
@@ -49,13 +52,13 @@ jobs:
       - name: Build base image (Debian + Python)
         run: |
           python3 showcase/status.py stage base running
-          docker build --progress=plain --target base -t playwright-live-demo-base .
+          docker build --progress=plain --target base -t playwright-live-demo-base . 2>&1 | python3 showcase/status.py docker base
           python3 showcase/status.py stage base done
 
       - name: Build test image (Playwright + Chromium + Allure)
         run: |
           python3 showcase/status.py stage image running
-          docker build --progress=plain -t playwright-live-demo .
+          docker build --progress=plain -t playwright-live-demo . 2>&1 | python3 showcase/status.py docker image
           python3 showcase/status.py stage image done
 
       - name: Smoke tests

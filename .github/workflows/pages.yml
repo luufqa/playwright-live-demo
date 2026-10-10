@@ -1,0 +1,24 @@
+name: Live page
+
+on:
+  push:
+    branches: [main]
+    paths: [showcase/live/**]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v7
+
+      - name: Publish the live page
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: showcase/live
+          keep_files: true

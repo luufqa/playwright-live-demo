@@ -3,6 +3,26 @@ import allure
 import pytest
 
 
+@pytest.mark.smoke
+@allure.title("Login page opens")
+@allure.description("The login page opens and shows the login form.")
+def test_login_page_opens(page):
+    login_page = LoginPage(page)
+    login_page.open("/login")
+
+    login_page.should_be_opened()
+
+
+@pytest.mark.smoke
+@allure.title("Signup form is visible")
+@allure.description("The login page also shows the form for new users.")
+def test_signup_form_is_visible(page):
+    login_page = LoginPage(page)
+    login_page.open("/login")
+
+    login_page.should_see_signup_form()
+
+
 @pytest.mark.integration
 @allure.title("User created with the API can log in")
 @allure.description("The fixture creates a user with the API. The user logs in with the UI.")
