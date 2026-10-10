@@ -58,6 +58,7 @@ Expected result: **9 passed, 1 failed, 1 skipped.**
 ├── locators/   # locators that are hard to find by role or text
 ├── pages/      # Page Object Model: one class for each page
 ├── tests/      # API and UI tests
+├── showcase/   # only for this demo: live progress in the issue (not needed in a usual test project)
 ├── conftest.py # fixtures: API client, test user, screenshot on failure
 ├── pytest.ini  # site URL, browser, markers
 └── Dockerfile  # two stages: base → tests
