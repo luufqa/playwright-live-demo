@@ -206,6 +206,10 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .landing p { color: var(--muted); font-size: 17px; max-width: 640px; margin: 16px auto 0; }
 .message { margin-top: 28px; padding: 28px; text-align: center; }
 .hidden { display: none !important; }
+.step.gate.risk { color: var(--fail); border: 1.5px solid var(--fail); background: color-mix(in srgb, var(--fail) 10%, transparent); font-weight: 600; }
+.step.gate.ok { color: var(--ok); border: 1.5px solid var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); font-weight: 600; }
+.tip .gate-result { font-weight: 600; color: #fca5a5; }
+.tip .gate-result.ok { color: #6ee7b7; }
 .wait-title { font-size: clamp(26px, 4.5vw, 40px) !important; }
 .wait-code { margin-top: 22px; display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
 .wait-code b { font-family: "JetBrains Mono", monospace; color: var(--text); letter-spacing: .08em; }
@@ -336,7 +340,7 @@ footer { margin-top: 36px; color: var(--muted); font-size: 13px; text-align: cen
       <div class="logo">▶</div>
       <div>playwright-live-demo<small>Python · Playwright · Docker · GitHub Actions · Allure</small></div>
     </div>
-    <div class="chip"><span class="dot"></span><span id="counter">Loading launches…</span></div>
+    <div class="chip hidden" id="counter-chip"><span class="dot"></span><span id="counter">Loading launches…</span></div>
   </header>
 
   <section id="landing" class="panel landing hidden">
@@ -350,13 +354,13 @@ footer { margin-top: 36px; color: var(--muted); font-size: 13px; text-align: cen
     <div class="pipeline preview" id="preview"></div>
     <div class="hint">Hover or tap a block to see what happens there.</div>
     <div class="real">
-      <div class="real-title">In a real project</div>
+      <div class="real-title">In a real project (CI/CD)</div>
       <div class="flow">
         <span class="step" tabindex="0">Merge request<span class="tip"><h4>Trigger</h4><p>A developer opens a merge request. The pipeline runs on every push to it, so reviewers see the test results before they approve it.</p></span></span><span class="arrow">→</span>
         <span class="step" tabindex="0">Build app<span class="tip"><h4>Build</h4><p>The application itself is built: code, images, packages.</p></span></span><span class="arrow">→</span>
         <span class="step" tabindex="0">Deploy to test stand<span class="tip"><h4>Deploy</h4><p>The new version goes to a test environment. Autotests check it there, not in production.</p></span></span><span class="arrow">→</span>
         <span class="step this" tabindex="0">Autotests · this demo<span class="tip"><h4>This demo</h4><p>The six blocks above: queue, Docker images, smoke, regression, report. Here we test a public site, so there is no build and deploy of an app.</p></span></span><span class="arrow">→</span>
-        <span class="step" tabindex="0">Quality gate<span class="tip"><h4>Quality gate</h4><p>If tests fail, the merge request is blocked. The team looks at the failures, fixes the bugs and runs the pipeline again.</p></span></span><span class="arrow">→</span>
+        <span class="step gate" tabindex="0">Quality gate<span class="tip"><h4>Quality gate</h4><p>If tests fail, the team reviews the risks in the report and decides: fix the bugs first, or accept the risk and release.</p></span></span><span class="arrow">→</span>
         <span class="step" tabindex="0">Merge &amp; release<span class="tip"><h4>Release</h4><p>Tests are green and reviewers approve: the code is merged into the main branch. The pipeline runs again and the new version goes to production.</p></span></span>
       </div>
     </div>
@@ -400,13 +404,13 @@ footer { margin-top: 36px; color: var(--muted); font-size: 13px; text-align: cen
       <div class="terminal" id="terminal"></div>
     </div>
     <div class="real">
-      <div class="real-title">In a real project</div>
+      <div class="real-title">In a real project (CI/CD)</div>
       <div class="flow">
         <span class="step" tabindex="0">Merge request<span class="tip"><h4>Trigger</h4><p>A developer opens a merge request. The pipeline runs on every push to it, so reviewers see the test results before they approve it.</p></span></span><span class="arrow">→</span>
         <span class="step" tabindex="0">Build app<span class="tip"><h4>Build</h4><p>The application itself is built: code, images, packages.</p></span></span><span class="arrow">→</span>
         <span class="step" tabindex="0">Deploy to test stand<span class="tip"><h4>Deploy</h4><p>The new version goes to a test environment. Autotests check it there, not in production.</p></span></span><span class="arrow">→</span>
         <span class="step this" tabindex="0">Autotests · this demo<span class="tip"><h4>This demo</h4><p>The six blocks above: queue, Docker images, smoke, regression, report. Here we test a public site, so there is no build and deploy of an app.</p></span></span><span class="arrow">→</span>
-        <span class="step" tabindex="0">Quality gate<span class="tip"><h4>Quality gate</h4><p>If tests fail, the merge request is blocked. The team looks at the failures, fixes the bugs and runs the pipeline again.</p></span></span><span class="arrow">→</span>
+        <span class="step gate" tabindex="0">Quality gate<span class="tip"><h4>Quality gate</h4><p>If tests fail, the team reviews the risks in the report and decides: fix the bugs first, or accept the risk and release.</p></span></span><span class="arrow">→</span>
         <span class="step" tabindex="0">Merge &amp; release<span class="tip"><h4>Release</h4><p>Tests are green and reviewers approve: the code is merged into the main branch. The pipeline runs again and the new version goes to production.</p></span></span>
       </div>
     </div>
@@ -420,7 +424,7 @@ const REPO = "luufqa/playwright-live-demo";
 const API = `https://api.github.com/repos/${REPO}`;
 const RUN_URL = `https://github.com/${REPO}/issues/new?template=run-demo.md`;
 const CODE_URL = `https://github.com/${REPO}/tree/main/`;
-const POLL_SECONDS = 6;
+const POLL_SECONDS = 10;
 
 function icon(paths) { return `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`; }
 const STAGES = {
@@ -593,6 +597,16 @@ function renderFinal(data) {
   show("again-button", data.finished);
   show("post-button", data.finished && Boolean(data.post_url));
   $("post-button").href = data.post_url || "#";
+  const gate = $("live").querySelector(".step.gate");
+  const risky = data.totals.failed > 0;
+  gate.classList.toggle("risk", data.finished && risky);
+  gate.classList.toggle("ok", data.finished && !risky);
+  const result = gate.querySelector(".gate-result") || gate.querySelector(".tip").insertAdjacentElement("afterbegin", document.createElement("p"));
+  result.className = `gate-result${risky ? "" : " ok"}`;
+  result.textContent = risky
+    ? `Quality gate: ${data.totals.failed} ${data.totals.failed === 1 ? "test" : "tests"} failed. Review the risks in the Allure report and decide: fix it or release with this risk.`
+    : "Quality gate: passed. All tests are green, the code is ready to release.";
+  result.hidden = !data.finished;
   if (data.finished && !autoCollapsed) {
     autoCollapsed = true;
     setConsole(false);
@@ -628,8 +642,10 @@ async function poll(issue) {
   try {
     const response = await fetch(`${API}/issues/${issue}/comments?per_page=30`, { headers: etag ? { "If-None-Match": etag } : {} });
     if (response.status === 403 || response.status === 429) {
-      showMessage(`GitHub limits how often a page can ask for updates. The page will try again in a minute. You can also watch the run in <a href="https://github.com/${REPO}/issues/${issue}" target="_blank" rel="noopener">issue #${issue}</a>.`);
-      delay = 60;
+      const reset = Number(response.headers.get("X-RateLimit-Reset")) || Date.now() / 1000 + 60;
+      delay = Math.max(15, reset - Date.now() / 1000 + 2);
+      const time = new Date(reset * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      showMessage(`GitHub allows 60 updates per hour from one network. Live updates continue at <b>${time}</b>. The run keeps going: you can watch it in <a href="https://github.com/${REPO}/issues/${issue}" target="_blank" rel="noopener">issue #${issue}</a>.`);
     } else if (response.status === 404) {
       showMessage(`Demo run #${esc(issue)} was not found. <a href="${RUN_URL}" target="_blank" rel="noopener">Start a new demo</a>.`);
       return;
@@ -684,7 +700,7 @@ async function waitForRun(code) {
       }
     }
   } catch {}
-  setTimeout(() => waitForRun(code), 5000);
+  setTimeout(() => waitForRun(code), 8000);
 }
 
 function tick() {
@@ -703,7 +719,6 @@ function start() {
   });
   $("repo-button").href = `https://github.com/${REPO}`;
   $("code-button").href = `https://github.com/${REPO}`;
-  loadCounter();
   if (wait && /^[0-9a-f]{6}$/.test(wait)) {
     $("wait-code").textContent = wait;
     $("reopen-button").href = runLink(wait);
@@ -713,6 +728,8 @@ function start() {
   }
   if (!issue || !/^\d+$/.test(issue)) {
     show("landing", true);
+    show("counter-chip", true);
+    loadCounter();
     buildPipeline("preview");
     return;
   }
