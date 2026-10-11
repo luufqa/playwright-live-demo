@@ -4,8 +4,9 @@ Click a link and watch a real CI/CD pipeline: Docker build, Python + Playwright 
 
 ## Project goal
 
-This project shows that UI and API autotests in CI/CD are not hard.
-Everything runs in Docker with one command: the same way on your computer and in GitHub Actions.
+This project shows where UI and API autotests run in a CI/CD pipeline.
+You can start the pipeline yourself: click **Run the demo**, then **Create**.
+With **Watch it live, step by step** you see what happens right now, in real time.
 
 The tests check the public practice site [automationexercise.com](https://automationexercise.com).
 This site is not part of this project.
@@ -22,13 +23,17 @@ https://luufqa.github.io/playwright-live-demo/
 
 ## What happens
 
-1. Docker downloads `debian:trixie-slim` and installs Python 3.13 (stage `base`).
-2. Docker installs Playwright, Chromium and Allure (stage `tests`).
-3. A test user is created with the API.
-4. Smoke tests run first. If they fail, the pipeline stops.
-5. All other tests run.
-6. The test user is deleted with the API.
-7. The Allure report is ready.
+In a real project, autotests start after the app is deployed to a test stand.
+Here the test stand is the public site automationexercise.com.
+
+1. You click **Run the demo** and **Create**. GitHub Actions takes your run: up to 3 runs go at the same time, other people wait in a queue.
+2. Docker downloads `debian:trixie-slim` from Docker Hub and installs Python 3.13 (stage `base`).
+3. Docker installs pytest, Playwright, Chromium and Allure and copies the tests (stage `tests`).
+4. **Smoke tests** run first: the most important checks. A fixture creates a test user with the API before the tests and deletes it after them. If one smoke test fails, the pipeline stops.
+5. If all smoke tests pass, the **regression** runs: all other API and UI tests, again with a new test user.
+6. Every test is **passed**, **failed** or **skipped** (a test can be skipped on purpose with the `skip` marker).
+7. Allure makes a report with steps, API responses and screenshots of failed UI tests. GitHub Pages publishes it.
+8. **Quality gate**: the team reads the report and decides: fix the bugs now, or accept the risk and release.
 
 ## Tests
 
