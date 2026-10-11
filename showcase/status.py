@@ -324,9 +324,30 @@ def docker(name: str):
     publish(status)
 
 
+def report_ready(url: str) -> bool:
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            return response.status == 200
+    except OSError:
+        return False
+
+
+def wait_for_report(status: dict):
+    """GitHub Pages needs about a minute to publish the report. Wait up to 3 minutes so the link never gives 404."""
+    add_event(status, "report", "GitHub Pages publishes the report")
+    save(status)
+    publish(status)
+    for _ in range(36):
+        if report_ready(status["report_url"]):
+            return
+        time.sleep(5)
+
+
 def finish(report_published: str):
     """Mark unfinished stages, show the summary and close the issue."""
     status = load()
+    if report_published == "true":
+        wait_for_report(status)
     status["stages"]["report"] = "done" if report_published == "true" else "failed"
     for name in STAGES:
         state = stage_state(status, name)
