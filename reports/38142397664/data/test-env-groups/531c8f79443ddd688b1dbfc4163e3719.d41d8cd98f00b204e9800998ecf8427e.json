@@ -1,0 +1,1 @@
+{"id":"531c8f79443ddd688b1dbfc4163e3719.d41d8cd98f00b204e9800998ecf8427e","fullName":"tests.api.test_products_api#test_products_list_rejects_post","name":"Products list rejects POST with status 405","status":"failed","testResultsByEnv":{"default":"41129c7d4d77d81e207101dff734b0be"}}
