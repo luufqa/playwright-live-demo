@@ -497,11 +497,7 @@ let autoCollapsed = false;
 let reportState = "";
 let startTime = 0;
 let endTime = 0;
-let shownKeys = null;
-let eventLines = [];
-let drawnLines = "";
-let revealTimer = null;
-let runFinished = false;
+let shownEvents = 0;
 
 function esc(text) {
   return String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -589,54 +585,22 @@ function renderEvents(data) {
   events.sort((a, b) => a.time - b.time);
   if (!events.length) return;
   startTime = startTime || events[0].time;
-  eventLines = events.map((event) => ({
-    key: `${event.stage}|${event.time}|${event.text || event.test?.nodeid}`,
-    stage: event.stage,
-    html: `<div class="line ${event.kind}"><span class="t">${clock(event.time - startTime)}</span><span class="k">${KIND_ICON[event.kind] || ""}</span><span class="msg">${event.test ? pytestLine(event.test) : esc(event.text)}</span></div>`,
-  }));
-  runFinished = data.finished;
-  if (!shownKeys) shownKeys = new Set(eventLines.map((line) => line.key));
-  drawEvents();
-  revealNext();
-}
-
-function drawEvents() {
-  const visible = eventLines.filter((line) => shownKeys.has(line.key));
   let lastStage = "";
-  const html = visible.map((line) => {
-    const header = line.stage !== lastStage
-      ? `<div class="line stage info"><span class="t"></span><span class="k">▸</span><span class="msg">${STAGES[line.stage].icon} ${STAGES[line.stage].name}</span></div>` : "";
-    lastStage = line.stage;
-    return header + line.html;
-  }).join("") + (runFinished && visible.length === eventLines.length ? "" : '<span class="cursor"></span>');
-  if (html === drawnLines) return;
-  const terminal = $("terminal");
-  const atBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 60;
-  terminal.innerHTML = html;
-  if (atBottom || !drawnLines) terminal.scrollTop = terminal.scrollHeight;
-  drawnLines = html;
-  $("event-count").textContent = visible.length;
-}
-
-function revealNext() {
-  if (revealTimer) return;
-  const waiting = eventLines.filter((line) => !shownKeys.has(line.key));
-  if (!waiting.length) {
-    if (runFinished) collapseOnce();
-    return;
+  const html = events.map((event) => {
+    const header = event.stage !== lastStage
+      ? `<div class="line stage info"><span class="t"></span><span class="k">▸</span><span class="msg">${STAGES[event.stage].icon} ${STAGES[event.stage].name}</span></div>` : "";
+    lastStage = event.stage;
+    const message = event.test ? pytestLine(event.test) : esc(event.text);
+    return `${header}<div class="line ${event.kind}"><span class="t">${clock(event.time - startTime)}</span><span class="k">${KIND_ICON[event.kind] || ""}</span><span class="msg">${message}</span></div>`;
+  }).join("");
+  if (events.length !== shownEvents) {
+    const terminal = $("terminal");
+    const atBottom = terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 60;
+    terminal.innerHTML = html + (data.finished ? "" : '<span class="cursor"></span>');
+    if (atBottom || !shownEvents) terminal.scrollTop = terminal.scrollHeight;
+    shownEvents = events.length;
   }
-  revealTimer = setTimeout(() => {
-    revealTimer = null;
-    shownKeys.add(waiting[0].key);
-    drawEvents();
-    revealNext();
-  }, Math.min(450, 8000 / waiting.length));
-}
-
-function collapseOnce() {
-  if (autoCollapsed) return;
-  autoCollapsed = true;
-  setConsole(false);
+  $("event-count").textContent = events.length;
 }
 
 function renderFinal(data) {
@@ -662,6 +626,10 @@ function renderFinal(data) {
     ? `Quality gate: ${data.totals.failed} ${data.totals.failed === 1 ? "test" : "tests"} failed. Review the risks in the Allure report and decide: fix it or release with this risk.`
     : "Quality gate: passed. All tests are green, the code is ready to release.";
   result.hidden = !data.finished;
+  if (data.finished && !autoCollapsed) {
+    autoCollapsed = true;
+    setConsole(false);
+  }
 }
 
 async function checkReport(url) {
